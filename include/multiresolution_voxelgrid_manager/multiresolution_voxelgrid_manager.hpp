@@ -7,6 +7,7 @@
 #include <stdexcept>
 #include <Eigen/Geometry>
 #include "sdf_tools/sdf.hpp"
+#include "visualization_msgs/Marker.h"
 #include "multiresolution_voxelgrid_manager/multiresolution_voxelgrid.hpp"
 
 #ifndef MULTIRESOLUTION_VOXELGRID_MANAGER_HPP
@@ -43,6 +44,8 @@ namespace multiresolution_voxelgrid_manager
     enum CELL_STATE {UNKNOWN = 0x00, KNOWN_EMPTY = 0xFE, KNOWN_FILLED = 0xFF, LIKELY_EMPTY = 0xAE, LIKELY_FILLED = 0xAF, PENDING_LIKELY_EMPTY = 0xCE, PENDING_LIKELY_FILLED = 0xCF};
 
     enum UPDATE_MODE {UPDATE_LOW_RES_ONLY, UPDATE_HIGH_RES_ONLY, UPDATE_BOTH};
+
+    enum UPDATE_TYPE {UPDATE_UNKNOWN_ONLY, UPDATE_LIKELY, UPDATE_ALL};
 
     enum QUERY_MODE {QUERY_LOW_RES_ONLY, QUERY_HIGH_RES_ONLY, QUERY_HIGH_RES_PREFERED, QUERY_LOW_RES_PREFERED};
 
@@ -177,7 +180,7 @@ namespace multiresolution_voxelgrid_manager
 
         ~MultiresolutionVoxelGridManager() {}
 
-        void AddObservations(std::vector<std::pair<Eigen::Vector3d, CELL_STATE>>& observations, UPDATE_MODE update_mode, bool auto_update=true);
+        void AddObservations(std::vector<std::pair<Eigen::Vector3d, CELL_STATE>>& observations, UPDATE_MODE update_mode, UPDATE_TYPE update_type, bool auto_update=true);
 
         void SweepAndUpdateLowResolutionGrid();
 
@@ -186,6 +189,8 @@ namespace multiresolution_voxelgrid_manager
         void UpdateLowResolutionGridFromHighResolutionGrid();
 
         void UpdateHighResolutionGridFromLowResolutionGrid();
+
+        visualization_msgs::Marker ExportForDisplay(QUERY_MODE query_mode, float alpha=0.5);
 
         sdf_tools::SignedDistanceField BuildLowResolutionSDF(QUERY_MODE query_mode, float OOB_value, bool mark_unknown_as_filled);
 
@@ -300,6 +305,11 @@ namespace multiresolution_voxelgrid_manager
             {
                 return CELL_STATE::UNKNOWN;
             }
+        }
+
+        inline MultiresolutionVoxelGrid<CELL_STATE>& GetGrid()
+        {
+            return grid_;
         }
     };
 }

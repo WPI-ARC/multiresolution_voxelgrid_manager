@@ -6,7 +6,6 @@
 #include <iostream>
 #include <fstream>
 #include <stdexcept>
-#include <zlib.h>
 #include <ros/ros.h>
 #include "multiresolution_voxelgrid_manager/multiresolution_voxelgrid.hpp"
 #include "multiresolution_voxelgrid_manager/multiresolution_voxelgrid_manager.hpp"
@@ -20,52 +19,179 @@ MultiresolutionVoxelGridManager::MultiresolutionVoxelGridManager(Eigen::Affine3d
     frame_ = frame;
 }
 
-void MultiresolutionVoxelGridManager::AddObservations(std::vector<std::pair<Eigen::Vector3d, CELL_STATE>>& observations, UPDATE_MODE update_mode, bool auto_update)
+void MultiresolutionVoxelGridManager::AddObservations(std::vector<std::pair<Eigen::Vector3d, CELL_STATE>>& observations, UPDATE_MODE update_mode, UPDATE_TYPE update_type, bool auto_update)
 {
-    if (update_mode == UPDATE_MODE::UPDATE_BOTH)
+    if (update_type == UPDATE_TYPE::UPDATE_ALL)
     {
-        for (size_t idx = 0; idx < observations.size(); idx++)
+        if (update_mode == UPDATE_MODE::UPDATE_BOTH)
         {
-            Eigen::Vector3d position = observations[idx].first;
-            CELL_STATE observation = observations[idx].second;
-            grid_.UpdateLowResolutionGrid(position.x(), position.y(), position.z(), observation);
-            grid_.UpdateHighResolutionGrid(position.x(), position.y(), position.z(), observation);
+            for (size_t idx = 0; idx < observations.size(); idx++)
+            {
+                Eigen::Vector3d position = observations[idx].first;
+                CELL_STATE observation = observations[idx].second;
+                grid_.UpdateLowResolutionGrid(position.x(), position.y(), position.z(), observation);
+                grid_.UpdateHighResolutionGrid(position.x(), position.y(), position.z(), observation);
+            }
+            if (auto_update)
+            {
+                SweepAndUpdateLowResolutionGrid();
+                SweepAndUpdateHighResolutionGrid();
+            }
         }
-        if (auto_update)
+        else if (update_mode == UPDATE_MODE::UPDATE_LOW_RES_ONLY)
         {
-            SweepAndUpdateLowResolutionGrid();
-            SweepAndUpdateHighResolutionGrid();
+            for (size_t idx = 0; idx < observations.size(); idx++)
+            {
+                Eigen::Vector3d position = observations[idx].first;
+                CELL_STATE observation = observations[idx].second;
+                grid_.UpdateLowResolutionGrid(position.x(), position.y(), position.z(), observation);
+            }
+            if (auto_update)
+            {
+                SweepAndUpdateLowResolutionGrid();
+            }
+        }
+        else if (update_mode == UPDATE_MODE::UPDATE_HIGH_RES_ONLY)
+        {
+            for (size_t idx = 0; idx < observations.size(); idx++)
+            {
+                Eigen::Vector3d position = observations[idx].first;
+                CELL_STATE observation = observations[idx].second;
+                grid_.UpdateHighResolutionGrid(position.x(), position.y(), position.z(), observation);
+            }
+            if (auto_update)
+            {
+                SweepAndUpdateHighResolutionGrid();
+            }
+        }
+        else
+        {
+            throw std::invalid_argument("Invalid update mode");
         }
     }
-    else if (update_mode == UPDATE_MODE::UPDATE_LOW_RES_ONLY)
+    else if (update_type == UPDATE_TYPE::UPDATE_LIKELY)
     {
-        for (size_t idx = 0; idx < observations.size(); idx++)
+        if (update_mode == UPDATE_MODE::UPDATE_BOTH)
         {
-            Eigen::Vector3d position = observations[idx].first;
-            CELL_STATE observation = observations[idx].second;
-            grid_.UpdateLowResolutionGrid(position.x(), position.y(), position.z(), observation);
+            for (size_t idx = 0; idx < observations.size(); idx++)
+            {
+                Eigen::Vector3d position = observations[idx].first;
+                CELL_STATE observation = observations[idx].second;
+                if (grid_.CheckLowResolutionGrid(position.x(), position.y(), position.z()).first != CELL_STATE::KNOWN_EMPTY && grid_.CheckLowResolutionGrid(position.x(), position.y(), position.z()).first != CELL_STATE::KNOWN_FILLED)
+                {
+                    grid_.UpdateLowResolutionGrid(position.x(), position.y(), position.z(), observation);
+                }
+                if (grid_.CheckHighResolutionGrid(position.x(), position.y(), position.z()).first != CELL_STATE::KNOWN_EMPTY && grid_.CheckHighResolutionGrid(position.x(), position.y(), position.z()).first != CELL_STATE::KNOWN_FILLED)
+                {
+                    grid_.UpdateHighResolutionGrid(position.x(), position.y(), position.z(), observation);
+                }
+            }
+            if (auto_update)
+            {
+                SweepAndUpdateLowResolutionGrid();
+                SweepAndUpdateHighResolutionGrid();
+            }
         }
-        if (auto_update)
+        else if (update_mode == UPDATE_MODE::UPDATE_LOW_RES_ONLY)
         {
-            SweepAndUpdateLowResolutionGrid();
+            for (size_t idx = 0; idx < observations.size(); idx++)
+            {
+                Eigen::Vector3d position = observations[idx].first;
+                CELL_STATE observation = observations[idx].second;
+                if (grid_.CheckLowResolutionGrid(position.x(), position.y(), position.z()).first != CELL_STATE::KNOWN_EMPTY && grid_.CheckLowResolutionGrid(position.x(), position.y(), position.z()).first != CELL_STATE::KNOWN_FILLED)
+                {
+                    grid_.UpdateLowResolutionGrid(position.x(), position.y(), position.z(), observation);
+                }
+            }
+            if (auto_update)
+            {
+                SweepAndUpdateLowResolutionGrid();
+            }
+        }
+        else if (update_mode == UPDATE_MODE::UPDATE_HIGH_RES_ONLY)
+        {
+            for (size_t idx = 0; idx < observations.size(); idx++)
+            {
+                Eigen::Vector3d position = observations[idx].first;
+                CELL_STATE observation = observations[idx].second;
+                if (grid_.CheckHighResolutionGrid(position.x(), position.y(), position.z()).first != CELL_STATE::KNOWN_EMPTY && grid_.CheckHighResolutionGrid(position.x(), position.y(), position.z()).first != CELL_STATE::KNOWN_FILLED)
+                {
+                    grid_.UpdateHighResolutionGrid(position.x(), position.y(), position.z(), observation);
+                }
+            }
+            if (auto_update)
+            {
+                SweepAndUpdateHighResolutionGrid();
+            }
+        }
+        else
+        {
+            throw std::invalid_argument("Invalid update mode");
         }
     }
-    else if (update_mode == UPDATE_MODE::UPDATE_HIGH_RES_ONLY)
+    else if (update_type == UPDATE_TYPE::UPDATE_UNKNOWN_ONLY)
     {
-        for (size_t idx = 0; idx < observations.size(); idx++)
+        if (update_mode == UPDATE_MODE::UPDATE_BOTH)
         {
-            Eigen::Vector3d position = observations[idx].first;
-            CELL_STATE observation = observations[idx].second;
-            grid_.UpdateHighResolutionGrid(position.x(), position.y(), position.z(), observation);
+            for (size_t idx = 0; idx < observations.size(); idx++)
+            {
+                Eigen::Vector3d position = observations[idx].first;
+                CELL_STATE observation = observations[idx].second;
+                if (grid_.CheckLowResolutionGrid(position.x(), position.y(), position.z()).first == CELL_STATE::UNKNOWN)
+                {
+                    grid_.UpdateLowResolutionGrid(position.x(), position.y(), position.z(), observation);
+                }
+                if (grid_.CheckHighResolutionGrid(position.x(), position.y(), position.z()).first == CELL_STATE::UNKNOWN)
+                {
+                    grid_.UpdateHighResolutionGrid(position.x(), position.y(), position.z(), observation);
+                }
+            }
+            if (auto_update)
+            {
+                SweepAndUpdateLowResolutionGrid();
+                SweepAndUpdateHighResolutionGrid();
+            }
         }
-        if (auto_update)
+        else if (update_mode == UPDATE_MODE::UPDATE_LOW_RES_ONLY)
         {
-            SweepAndUpdateHighResolutionGrid();
+            for (size_t idx = 0; idx < observations.size(); idx++)
+            {
+                Eigen::Vector3d position = observations[idx].first;
+                CELL_STATE observation = observations[idx].second;
+                if (grid_.CheckLowResolutionGrid(position.x(), position.y(), position.z()).first == CELL_STATE::UNKNOWN)
+                {
+                    grid_.UpdateLowResolutionGrid(position.x(), position.y(), position.z(), observation);
+                }
+            }
+            if (auto_update)
+            {
+                SweepAndUpdateLowResolutionGrid();
+            }
+        }
+        else if (update_mode == UPDATE_MODE::UPDATE_HIGH_RES_ONLY)
+        {
+            for (size_t idx = 0; idx < observations.size(); idx++)
+            {
+                Eigen::Vector3d position = observations[idx].first;
+                CELL_STATE observation = observations[idx].second;
+                if (grid_.CheckHighResolutionGrid(position.x(), position.y(), position.z()).first == CELL_STATE::UNKNOWN)
+                {
+                    grid_.UpdateHighResolutionGrid(position.x(), position.y(), position.z(), observation);
+                }
+            }
+            if (auto_update)
+            {
+                SweepAndUpdateHighResolutionGrid();
+            }
+        }
+        else
+        {
+            throw std::invalid_argument("Invalid update mode");
         }
     }
     else
     {
-        throw std::invalid_argument("Invalid update mode");
+        throw std::invalid_argument("Invalid update type");
     }
 }
 
@@ -717,6 +843,113 @@ sdf_tools::SignedDistanceField MultiresolutionVoxelGridManager::BuildSDF(QUERY_M
         }
         return sdf;
     }
+}
+
+visualization_msgs::Marker MultiresolutionVoxelGridManager::ExportForDisplay(QUERY_MODE query_mode, float alpha)
+{
+    // Assemble a visualization_markers::Marker representation of the SDF to display in RViz
+    visualization_msgs::Marker display_rep;
+    // Populate the header
+    display_rep.header.frame_id = frame_;
+    // Populate the options
+    display_rep.ns = "multiresolution_voxelgrid_display";
+    display_rep.id = 1;
+    display_rep.type = visualization_msgs::Marker::CUBE_LIST;
+    display_rep.action = visualization_msgs::Marker::ADD;
+    display_rep.lifetime = ros::Duration(0.0);
+    display_rep.frame_locked = false;
+    display_rep.scale.x = grid_.GetHighResolution();
+    display_rep.scale.y = grid_.GetHighResolution();
+    display_rep.scale.z = grid_.GetHighResolution();
+    // Add all the cells of the SDF to the message
+    for (int64_t x_index = 0; x_index < grid_.GetHighResolutionNumXCells(); x_index++)
+    {
+        for (int64_t y_index = 0; y_index < grid_.GetHighResolutionNumYCells(); y_index++)
+        {
+            for (int64_t z_index = 0; z_index < grid_.GetHighResolutionNumZCells(); z_index++)
+            {
+                // Get the real-world location of the cell
+                std::vector<double> location = grid_.HighResolutionGridIndexToLocation(x_index, y_index, z_index);
+                if (location.size() == 3)
+                {
+                    Eigen::Vector3d cell_position(location[0], location[1], location[2]);
+                    // Lookup the location in the grid
+                    CELL_STATE cell_value = QueryMultiresolutionGrid(cell_position, query_mode).first;
+                    if (cell_value == CELL_STATE::KNOWN_FILLED)
+                    {
+                        geometry_msgs::Point new_point;
+                        new_point.x = location[0];
+                        new_point.y = location[1];
+                        new_point.z = location[2];
+                        display_rep.points.push_back(new_point);
+                        std_msgs::ColorRGBA new_color;
+                        new_color.a = alpha;
+                        new_color.b = 0.0;
+                        new_color.g = 0.0;
+                        new_color.r = 1.0;
+                        display_rep.colors.push_back(new_color);
+                    }
+                    else if (cell_value == CELL_STATE::LIKELY_FILLED)
+                    {
+                        geometry_msgs::Point new_point;
+                        new_point.x = location[0];
+                        new_point.y = location[1];
+                        new_point.z = location[2];
+                        display_rep.points.push_back(new_point);
+                        std_msgs::ColorRGBA new_color;
+                        new_color.a = alpha;
+                        new_color.b = 0.0;
+                        new_color.g = 0.0;
+                        new_color.r = 0.5;
+                        display_rep.colors.push_back(new_color);
+                    }
+                    else if (cell_value == CELL_STATE::KNOWN_EMPTY)
+                    {
+                        geometry_msgs::Point new_point;
+                        new_point.x = location[0];
+                        new_point.y = location[1];
+                        new_point.z = location[2];
+                        display_rep.points.push_back(new_point);
+                        std_msgs::ColorRGBA new_color;
+                        new_color.a = alpha;
+                        new_color.b = 1.0;
+                        new_color.g = 0.0;
+                        new_color.r = 0.0;
+                        display_rep.colors.push_back(new_color);
+                    }
+                    else if (cell_value == CELL_STATE::LIKELY_EMPTY)
+                    {
+                        geometry_msgs::Point new_point;
+                        new_point.x = location[0];
+                        new_point.y = location[1];
+                        new_point.z = location[2];
+                        display_rep.points.push_back(new_point);
+                        std_msgs::ColorRGBA new_color;
+                        new_color.a = alpha;
+                        new_color.b = 0.5;
+                        new_color.g = 0.0;
+                        new_color.r = 0.0;
+                        display_rep.colors.push_back(new_color);
+                    }
+                    else
+                    {
+                        geometry_msgs::Point new_point;
+                        new_point.x = location[0];
+                        new_point.y = location[1];
+                        new_point.z = location[2];
+                        display_rep.points.push_back(new_point);
+                        std_msgs::ColorRGBA new_color;
+                        new_color.a = alpha;
+                        new_color.b = 0.5;
+                        new_color.g = 0.5;
+                        new_color.r = 0.5;
+                        display_rep.colors.push_back(new_color);
+                    }
+                }
+            }
+        }
+    }
+    return display_rep;
 }
 
 sdf_tools::SignedDistanceField MultiresolutionVoxelGridManager::BuildLowResolutionSDF(QUERY_MODE query_mode, float OOB_value, bool mark_unknown_as_filled)
