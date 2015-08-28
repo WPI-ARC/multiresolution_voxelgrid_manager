@@ -29,9 +29,9 @@ namespace multiresolution_voxelgrid_manager
         int32_t update_direction;
     } bucket_cell;
 
-    typedef VOXEL_GRID::VoxelGrid<sdf_cell> DistanceField2D;
+    typedef VoxelGrid::VoxelGrid<sdf_cell> DistanceField2D;
 
-    typedef VOXEL_GRID::VoxelGrid<bucket_cell> DistanceField3D;
+    typedef VoxelGrid::VoxelGrid<bucket_cell> DistanceField3D;
 
     inline double ComputeDistanceSquared(int32_t x1, int32_t y1, int32_t z1, int32_t x2, int32_t y2, int32_t z2)
     {
@@ -62,7 +62,7 @@ namespace multiresolution_voxelgrid_manager
 
         inline sdf_cell get_xy(DistanceField2D& partial_field, int64_t x, int64_t y)
         {
-            std::pair<sdf_cell, bool> res = partial_field.Get(x, y, 0);
+            std::pair<sdf_cell, bool> res = partial_field.GetImmutable(x, y, 0);
             if (res.second)
             {
                 return res.first;
@@ -78,7 +78,7 @@ namespace multiresolution_voxelgrid_manager
 
         inline sdf_cell get_xz(DistanceField2D& partial_field, int64_t x, int64_t z)
         {
-            std::pair<sdf_cell, bool> res = partial_field.Get(x, 0, z);
+            std::pair<sdf_cell, bool> res = partial_field.GetImmutable(x, 0, z);
             if (res.second)
             {
                 return res.first;
@@ -94,7 +94,7 @@ namespace multiresolution_voxelgrid_manager
 
         inline sdf_cell get_yz(DistanceField2D& partial_field, int64_t y, int64_t z)
         {
-            std::pair<sdf_cell, bool> res = partial_field.Get(0, y, z);
+            std::pair<sdf_cell, bool> res = partial_field.GetImmutable(0, y, z);
             if (res.second)
             {
                 return res.first;
@@ -110,17 +110,17 @@ namespace multiresolution_voxelgrid_manager
 
         inline void put_xy(DistanceField2D& partial_field, sdf_cell& cell, int64_t x, int64_t y)
         {
-            partial_field.Set(x, y, 0, cell);
+            partial_field.SetValue(x, y, 0, cell);
         }
 
         inline void put_xz(DistanceField2D& partial_field, sdf_cell& cell, int64_t x, int64_t z)
         {
-            partial_field.Set(x, 0, z, cell);
+            partial_field.SetValue(x, 0, z, cell);
         }
 
         inline void put_yz(DistanceField2D& partial_field, sdf_cell& cell, int64_t y, int64_t z)
         {
-            partial_field.Set(0, y, z, cell);
+            partial_field.SetValue(0, y, z, cell);
         }
 
         inline double distance_squared(sdf_cell& cell)
@@ -178,8 +178,6 @@ namespace multiresolution_voxelgrid_manager
 
         MultiresolutionVoxelGridManager() {}
 
-        ~MultiresolutionVoxelGridManager() {}
-
         void AddObservations(std::vector<std::pair<Eigen::Vector3d, CELL_STATE>>& observations, UPDATE_MODE update_mode, UPDATE_TYPE update_type, bool auto_update=true);
 
         void SweepAndUpdateLowResolutionGrid();
@@ -191,6 +189,10 @@ namespace multiresolution_voxelgrid_manager
         void UpdateHighResolutionGridFromLowResolutionGrid();
 
         visualization_msgs::Marker ExportForDisplay(QUERY_MODE query_mode, float alpha=0.5);
+
+        visualization_msgs::Marker ExportHighResolutionForDisplay(float alpha=0.5);
+
+        visualization_msgs::Marker ExportLowResolutionForDisplay(float alpha=0.5);
 
         sdf_tools::SignedDistanceField BuildLowResolutionSDF(QUERY_MODE query_mode, float OOB_value, bool mark_unknown_as_filled);
 
