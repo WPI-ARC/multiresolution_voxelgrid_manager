@@ -165,7 +165,7 @@ namespace multiresolution_voxelgrid_manager
 
         std::vector<std::vector<std::vector<std::vector<int>>>> MakeNeighborhoods();
 
-        inline const int GetDirectionNumber(int dx, int dy, int dz)
+        inline int GetDirectionNumber(int dx, int dy, int dz)
         {
             return ((dx + 1) * 9) + ((dy + 1) * 3) + (dz + 1);
         }
