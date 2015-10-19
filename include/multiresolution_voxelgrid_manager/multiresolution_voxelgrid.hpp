@@ -6,7 +6,7 @@
 #include <iostream>
 #include <stdexcept>
 #include <Eigen/Geometry>
-#include "sdf_tools/voxel_grid.hpp"
+#include "arc_utilities/voxel_grid.hpp"
 
 #ifndef MULTIRESOLUTION_VOXELGRID_HPP
 #define MULTIRESOLUTION_VOXELGRID_HPP
@@ -18,103 +18,101 @@ namespace multiresolution_voxelgrid_manager
     {
     protected:
 
-        VOXEL_GRID::VoxelGrid<T> low_resolution_grid_;
-        VOXEL_GRID::VoxelGrid<T> high_resolution_grid_;
+        VoxelGrid::VoxelGrid<T> low_resolution_grid_;
+        VoxelGrid::VoxelGrid<T> high_resolution_grid_;
 
     public:
 
         MultiresolutionVoxelGrid(Eigen::Affine3d origin_transform, double x_size, double y_size, double z_size, double low_resolution_cell_size, double high_resolution_cell_size, T default_low_resolution_value, T default_high_resolution_value)
         {
-            VOXEL_GRID::VoxelGrid<T> new_low_res_grid(origin_transform, low_resolution_cell_size, x_size, y_size, z_size, default_low_resolution_value);
+            VoxelGrid::VoxelGrid<T> new_low_res_grid(origin_transform, low_resolution_cell_size, x_size, y_size, z_size, default_low_resolution_value);
             low_resolution_grid_ = new_low_res_grid;
-            VOXEL_GRID::VoxelGrid<T> new_high_res_grid(origin_transform, high_resolution_cell_size, x_size, y_size, z_size, default_high_resolution_value);
+            VoxelGrid::VoxelGrid<T> new_high_res_grid(origin_transform, high_resolution_cell_size, x_size, y_size, z_size, default_high_resolution_value);
             high_resolution_grid_ = new_high_res_grid;
         }
 
         MultiresolutionVoxelGrid() {}
 
-        ~MultiresolutionVoxelGrid() {}
-
         inline bool UpdateLowResolutionGrid(double x, double y, double z, T value)
         {
-            return low_resolution_grid_.Set(x, y, z, value);
+            return low_resolution_grid_.SetValue(x, y, z, value);
         }
 
         inline bool UpdateHighResolutionGrid(double x, double y, double z, T value)
         {
-            return high_resolution_grid_.Set(x, y, z, value);
+            return high_resolution_grid_.SetValue(x, y, z, value);
         }
 
         inline bool UpdateLowResolutionGrid(int64_t x_index, int64_t y_index, int64_t z_index, T value)
         {
-            return low_resolution_grid_.Set(x_index, y_index, z_index, value);
+            return low_resolution_grid_.SetValue(x_index, y_index, z_index, value);
         }
 
         inline bool UpdateHighResolutionGrid(int64_t x_index, int64_t y_index, int64_t z_index, T value)
         {
-            return high_resolution_grid_.Set(x_index, y_index, z_index, value);
+            return high_resolution_grid_.SetValue(x_index, y_index, z_index, value);
         }
 
         inline std::pair<T&, bool> CheckLowResolutionGrid(double x, double y, double z)
         {
-            return low_resolution_grid_.Get(x, y, z);
+            return low_resolution_grid_.GetMutable(x, y, z);
         }
 
         inline std::pair<T&, bool> CheckHighResolutionGrid(double x, double y, double z)
         {
-            return high_resolution_grid_.Get(x, y, z);
+            return high_resolution_grid_.GetMutable(x, y, z);
         }
 
         inline std::pair<T&, bool> CheckLowResolutionGrid(int64_t x_index, int64_t y_index, int64_t z_index)
         {
-            return low_resolution_grid_.Get(x_index, y_index, z_index);
+            return low_resolution_grid_.GetMutable(x_index, y_index, z_index);
         }
 
         inline std::pair<T&, bool> CheckHighResolutionGrid(int64_t x_index, int64_t y_index, int64_t z_index)
         {
-            return high_resolution_grid_.Get(x_index, y_index, z_index);
+            return high_resolution_grid_.GetMutable(x_index, y_index, z_index);
         }
 
         std::vector<T> CheckLowResolutionGridNeighbors(int64_t x_index, int64_t y_index, int64_t z_index)
         {
             std::vector<T> neighbors;
             // Get each of the neighbors, and add them to the vector if they're valid
-            std::pair<T, bool> n1 = low_resolution_grid_.Get(x_index - 1, y_index - 1, z_index - 1);
+            std::pair<T, bool> n1 = low_resolution_grid_.GetImmutable(x_index - 1, y_index - 1, z_index - 1);
             if (n1.second)
             {
                 neighbors.push_back(n1.first);
             }
-            std::pair<T, bool> n2 = low_resolution_grid_.Get(x_index - 1, y_index - 1, z_index + 1);
+            std::pair<T, bool> n2 = low_resolution_grid_.GetImmutable(x_index - 1, y_index - 1, z_index + 1);
             if (n2.second)
             {
                 neighbors.push_back(n2.first);
             }
-            std::pair<T, bool> n3 = low_resolution_grid_.Get(x_index - 1, y_index + 1, z_index - 1);
+            std::pair<T, bool> n3 = low_resolution_grid_.GetImmutable(x_index - 1, y_index + 1, z_index - 1);
             if (n3.second)
             {
                 neighbors.push_back(n3.first);
             }
-            std::pair<T, bool> n4 = low_resolution_grid_.Get(x_index - 1, y_index + 1, z_index + 1);
+            std::pair<T, bool> n4 = low_resolution_grid_.GetImmutable(x_index - 1, y_index + 1, z_index + 1);
             if (n4.second)
             {
                 neighbors.push_back(n4.first);
             }
-            std::pair<T, bool> n5 = low_resolution_grid_.Get(x_index + 1, y_index - 1, z_index - 1);
+            std::pair<T, bool> n5 = low_resolution_grid_.GetImmutable(x_index + 1, y_index - 1, z_index - 1);
             if (n5.second)
             {
                 neighbors.push_back(n5.first);
             }
-            std::pair<T, bool> n6 = low_resolution_grid_.Get(x_index + 1, y_index - 1, z_index + 1);
+            std::pair<T, bool> n6 = low_resolution_grid_.GetImmutable(x_index + 1, y_index - 1, z_index + 1);
             if (n6.second)
             {
                 neighbors.push_back(n6.first);
             }
-            std::pair<T, bool> n7 = low_resolution_grid_.Get(x_index + 1, y_index + 1, z_index - 1);
+            std::pair<T, bool> n7 = low_resolution_grid_.GetImmutable(x_index + 1, y_index + 1, z_index - 1);
             if (n7.second)
             {
                 neighbors.push_back(n7.first);
             }
-            std::pair<T, bool> n8 = low_resolution_grid_.Get(x_index + 1, y_index + 1, z_index + 1);
+            std::pair<T, bool> n8 = low_resolution_grid_.GetImmutable(x_index + 1, y_index + 1, z_index + 1);
             if (n8.second)
             {
                 neighbors.push_back(n8.first);
@@ -126,42 +124,42 @@ namespace multiresolution_voxelgrid_manager
         {
             std::vector<T> neighbors;
             // Get each of the neighbors, and add them to the vector if they're valid
-            std::pair<T, bool> n1 = high_resolution_grid_.Get(x_index - 1, y_index - 1, z_index - 1);
+            std::pair<T, bool> n1 = high_resolution_grid_.GetImmutable(x_index - 1, y_index - 1, z_index - 1);
             if (n1.second)
             {
                 neighbors.push_back(n1.first);
             }
-            std::pair<T, bool> n2 = high_resolution_grid_.Get(x_index - 1, y_index - 1, z_index + 1);
+            std::pair<T, bool> n2 = high_resolution_grid_.GetImmutable(x_index - 1, y_index - 1, z_index + 1);
             if (n2.second)
             {
                 neighbors.push_back(n2.first);
             }
-            std::pair<T, bool> n3 = high_resolution_grid_.Get(x_index - 1, y_index + 1, z_index - 1);
+            std::pair<T, bool> n3 = high_resolution_grid_.GetImmutable(x_index - 1, y_index + 1, z_index - 1);
             if (n3.second)
             {
                 neighbors.push_back(n3.first);
             }
-            std::pair<T, bool> n4 = high_resolution_grid_.Get(x_index - 1, y_index + 1, z_index + 1);
+            std::pair<T, bool> n4 = high_resolution_grid_.GetImmutable(x_index - 1, y_index + 1, z_index + 1);
             if (n4.second)
             {
                 neighbors.push_back(n4.first);
             }
-            std::pair<T, bool> n5 = high_resolution_grid_.Get(x_index + 1, y_index - 1, z_index - 1);
+            std::pair<T, bool> n5 = high_resolution_grid_.GetImmutable(x_index + 1, y_index - 1, z_index - 1);
             if (n5.second)
             {
                 neighbors.push_back(n5.first);
             }
-            std::pair<T, bool> n6 = high_resolution_grid_.Get(x_index + 1, y_index - 1, z_index + 1);
+            std::pair<T, bool> n6 = high_resolution_grid_.GetImmutable(x_index + 1, y_index - 1, z_index + 1);
             if (n6.second)
             {
                 neighbors.push_back(n6.first);
             }
-            std::pair<T, bool> n7 = high_resolution_grid_.Get(x_index + 1, y_index + 1, z_index - 1);
+            std::pair<T, bool> n7 = high_resolution_grid_.GetImmutable(x_index + 1, y_index + 1, z_index - 1);
             if (n7.second)
             {
                 neighbors.push_back(n7.first);
             }
-            std::pair<T, bool> n8 = high_resolution_grid_.Get(x_index + 1, y_index + 1, z_index + 1);
+            std::pair<T, bool> n8 = high_resolution_grid_.GetImmutable(x_index + 1, y_index + 1, z_index + 1);
             if (n8.second)
             {
                 neighbors.push_back(n8.first);
@@ -221,12 +219,12 @@ namespace multiresolution_voxelgrid_manager
 
         inline double GetLowResolution()
         {
-            return low_resolution_grid_.GetCellSize();
+            return low_resolution_grid_.GetCellSizes()[0];
         }
 
         inline double GetHighResolution()
         {
-            return high_resolution_grid_.GetCellSize();
+            return high_resolution_grid_.GetCellSizes()[0];
         }
 
         inline T GetDefaultLowResolutionValue()
@@ -251,12 +249,12 @@ namespace multiresolution_voxelgrid_manager
 
         void ResetLowResolutionGrid()
         {
-            low_resolution_grid_.Reset(low_resolution_grid_.GetDefaultValue());
+            low_resolution_grid_.ResetWithDefault();
         }
 
         void ResetHighResolutionGrid()
         {
-            high_resolution_grid_.Reset(high_resolution_grid_.GetDefaultValue());
+            high_resolution_grid_.ResetWithDefault();
         }
 
         void ResetGrids()

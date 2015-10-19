@@ -555,7 +555,7 @@ DistanceField3D MultiresolutionVoxelGridManager::Build3DDistanceField(std::vecto
     // Mark all points with distance zero and add to the bucket queue
     for (size_t index = 0; index < points.size(); index++)
     {
-        std::pair<bucket_cell&, bool> query = distance_field.Get((int64_t)points[index].x(), (int64_t)points[index].y(), (int64_t)points[index].z());
+        std::pair<bucket_cell&, bool> query = distance_field.GetMutable((int64_t)points[index].x(), (int64_t)points[index].y(), (int64_t)points[index].z());
         if (query.second)
         {
             query.first.location[0] = points[index].x();
@@ -610,7 +610,7 @@ DistanceField3D MultiresolutionVoxelGridManager::Build3DDistanceField(std::vecto
                 int nx = x + dx;
                 int ny = y + dy;
                 int nz = z + dz;
-                std::pair<bucket_cell&, bool> neighbor_query = distance_field.Get((int64_t)nx, (int64_t)ny, (int64_t)nz);
+                std::pair<bucket_cell&, bool> neighbor_query = distance_field.GetMutable((int64_t)nx, (int64_t)ny, (int64_t)nz);
                 if (!neighbor_query.second)
                 {
                     // "Neighbor" is outside the bounds of the SDF
@@ -734,28 +734,28 @@ sdf_tools::SignedDistanceField MultiresolutionVoxelGridManager::BuildSDF(QUERY_M
                     if (cell_state == CELL_STATE::KNOWN_FILLED || cell_state == CELL_STATE::LIKELY_FILLED)
                     {
                         // Mark as filled
-                        filled_cells.Set(x_index, y_index, z_index, filled_cell);
-                        empty_cells.Set(x_index, y_index, z_index, empty_cell);
+                        filled_cells.SetValue(x_index, y_index, z_index, filled_cell);
+                        empty_cells.SetValue(x_index, y_index, z_index, empty_cell);
                     }
                     else if (cell_state == CELL_STATE::KNOWN_EMPTY || cell_state == CELL_STATE::LIKELY_EMPTY)
                     {
                         // Mark as free space
-                        filled_cells.Set(x_index, y_index, z_index, empty_cell);
-                        empty_cells.Set(x_index, y_index, z_index, filled_cell);
+                        filled_cells.SetValue(x_index, y_index, z_index, empty_cell);
+                        empty_cells.SetValue(x_index, y_index, z_index, filled_cell);
                     }
                     else
                     {
                         if (mark_unknown_as_filled)
                         {
                             // Mark as filled
-                            filled_cells.Set(x_index, y_index, z_index, filled_cell);
-                            empty_cells.Set(x_index, y_index, z_index, empty_cell);
+                            filled_cells.SetValue(x_index, y_index, z_index, filled_cell);
+                            empty_cells.SetValue(x_index, y_index, z_index, empty_cell);
                         }
                         else
                         {
                             // Mark as free space
-                            filled_cells.Set(x_index, y_index, z_index, empty_cell);
-                            empty_cells.Set(x_index, y_index, z_index, filled_cell);
+                            filled_cells.SetValue(x_index, y_index, z_index, empty_cell);
+                            empty_cells.SetValue(x_index, y_index, z_index, filled_cell);
                         }
                     }
                 }
@@ -771,8 +771,8 @@ sdf_tools::SignedDistanceField MultiresolutionVoxelGridManager::BuildSDF(QUERY_M
             {
                 for (int64_t z_index = 0; z_index < sdf.GetNumZCells(); z_index++)
                 {
-                    double filled_distance = sqrt(pow(filled_cells.Get(x_index, y_index, z_index).first.d1, 2) + pow(filled_cells.Get(x_index, y_index, z_index).first.d2, 2)) * sdf.GetResolution();
-                    double empty_distance = sqrt(pow(empty_cells.Get(x_index, y_index, z_index).first.d1, 2) + pow(empty_cells.Get(x_index, y_index, z_index).first.d2, 2)) * sdf.GetResolution();
+                    double filled_distance = sqrt(pow(filled_cells.GetImmutable(x_index, y_index, z_index).first.d1, 2) + pow(filled_cells.GetImmutable(x_index, y_index, z_index).first.d2, 2)) * sdf.GetResolution();
+                    double empty_distance = sqrt(pow(empty_cells.GetImmutable(x_index, y_index, z_index).first.d1, 2) + pow(empty_cells.GetImmutable(x_index, y_index, z_index).first.d2, 2)) * sdf.GetResolution();
                     sdf.Set(x_index, y_index, z_index, (filled_distance - empty_distance));
                 }
             }
@@ -797,29 +797,30 @@ sdf_tools::SignedDistanceField MultiresolutionVoxelGridManager::BuildSDF(QUERY_M
                     double y = location[1];
                     double z = location[2];
                     Eigen::Vector3d position(x, y, z);
+                    Eigen::Vector3i index(x_index, y_index, z_index);
                     // Lookup the location in the grid
                     CELL_STATE cell_state = QueryMultiresolutionGrid(position, query_mode).first;
                     if (cell_state == CELL_STATE::KNOWN_FILLED || cell_state == CELL_STATE::LIKELY_FILLED)
                     {
                         // Mark as filled
-                        filled.push_back(Eigen::Vector3i(x_index, y_index, z_index));
+                        filled.push_back(index);
                     }
                     else if (cell_state == CELL_STATE::KNOWN_EMPTY || cell_state == CELL_STATE::LIKELY_EMPTY)
                     {
                         // Mark as free space
-                        free.push_back(Eigen::Vector3i(x_index, y_index, z_index));
+                        free.push_back(index);
                     }
                     else
                     {
                         if (mark_unknown_as_filled)
                         {
                             // Mark as filled
-                            filled.push_back(Eigen::Vector3i(x_index, y_index, z_index));
+                            filled.push_back(index);
                         }
                         else
                         {
                             // Mark as free space
-                            free.push_back(Eigen::Vector3i(x_index, y_index, z_index));
+                            free.push_back(index);
                         }
                     }
                 }
@@ -835,8 +836,8 @@ sdf_tools::SignedDistanceField MultiresolutionVoxelGridManager::BuildSDF(QUERY_M
             {
                 for (int64_t z_index = 0; z_index < sdf.GetNumZCells(); z_index++)
                 {
-                    double distance1 = sqrt(filled_distance_field.Get(x_index, y_index, z_index).first.distance_square) * sdf.GetResolution();
-                    double distance2 = sqrt(free_distance_field.Get(x_index, y_index, z_index).first.distance_square) * sdf.GetResolution();
+                    double distance1 = sqrt(filled_distance_field.GetImmutable(x_index, y_index, z_index).first.distance_square) * sdf.GetResolution();
+                    double distance2 = sqrt(free_distance_field.GetImmutable(x_index, y_index, z_index).first.distance_square) * sdf.GetResolution();
                     sdf.Set(x_index, y_index, z_index, (distance1 - distance2));
                 }
             }
@@ -945,6 +946,240 @@ visualization_msgs::Marker MultiresolutionVoxelGridManager::ExportForDisplay(QUE
                         new_color.r = 0.5;
                         display_rep.colors.push_back(new_color);
                     }
+                }
+            }
+        }
+    }
+    return display_rep;
+}
+
+visualization_msgs::Marker MultiresolutionVoxelGridManager::ExportHighResolutionForDisplay(float alpha)
+{
+    // Assemble a visualization_markers::Marker representation of the SDF to display in RViz
+    visualization_msgs::Marker display_rep;
+    // Populate the header
+    display_rep.header.frame_id = frame_;
+    // Populate the options
+    display_rep.ns = "multiresolution_voxelgrid_display";
+    display_rep.id = 1;
+    display_rep.type = visualization_msgs::Marker::CUBE_LIST;
+    display_rep.action = visualization_msgs::Marker::ADD;
+    display_rep.lifetime = ros::Duration(0.0);
+    display_rep.frame_locked = false;
+    display_rep.scale.x = grid_.GetHighResolution();
+    display_rep.scale.y = grid_.GetHighResolution();
+    display_rep.scale.z = grid_.GetHighResolution();
+    // Add all the cells of the SDF to the message
+    for (int64_t x_index = 0; x_index < grid_.GetHighResolutionNumXCells(); x_index++)
+    {
+        for (int64_t y_index = 0; y_index < grid_.GetHighResolutionNumYCells(); y_index++)
+        {
+            for (int64_t z_index = 0; z_index < grid_.GetHighResolutionNumZCells(); z_index++)
+            {
+                // Get the value of the cell
+                CELL_STATE cell_value = grid_.CheckHighResolutionGrid(x_index, y_index, z_index).first;
+                // Get the real-world location of the cell
+                std::vector<double> location = grid_.HighResolutionGridIndexToLocation(x_index, y_index, z_index);
+                if (cell_value == CELL_STATE::KNOWN_FILLED)
+                {
+                    geometry_msgs::Point new_point;
+                    new_point.x = location[0];
+                    new_point.y = location[1];
+                    new_point.z = location[2];
+                    display_rep.points.push_back(new_point);
+                    std_msgs::ColorRGBA new_color;
+                    new_color.a = alpha;
+                    new_color.b = 0.0;
+                    new_color.g = 0.0;
+                    new_color.r = 1.0;
+                    display_rep.colors.push_back(new_color);
+                }
+                else if (cell_value == CELL_STATE::LIKELY_FILLED)
+                {
+                    geometry_msgs::Point new_point;
+                    new_point.x = location[0];
+                    new_point.y = location[1];
+                    new_point.z = location[2];
+                    display_rep.points.push_back(new_point);
+                    std_msgs::ColorRGBA new_color;
+                    new_color.a = alpha;
+                    new_color.b = 0.0;
+                    new_color.g = 0.0;
+                    new_color.r = 0.5;
+                    display_rep.colors.push_back(new_color);
+                }
+                else if (cell_value == CELL_STATE::KNOWN_EMPTY)
+                {
+                    geometry_msgs::Point new_point;
+                    new_point.x = location[0];
+                    new_point.y = location[1];
+                    new_point.z = location[2];
+                    display_rep.points.push_back(new_point);
+                    std_msgs::ColorRGBA new_color;
+                    new_color.a = alpha;
+                    new_color.b = 1.0;
+                    new_color.g = 0.0;
+                    new_color.r = 0.0;
+                    display_rep.colors.push_back(new_color);
+                }
+                else if (cell_value == CELL_STATE::LIKELY_EMPTY)
+                {
+                    geometry_msgs::Point new_point;
+                    new_point.x = location[0];
+                    new_point.y = location[1];
+                    new_point.z = location[2];
+                    display_rep.points.push_back(new_point);
+                    std_msgs::ColorRGBA new_color;
+                    new_color.a = alpha;
+                    new_color.b = 0.5;
+                    new_color.g = 0.0;
+                    new_color.r = 0.0;
+                    display_rep.colors.push_back(new_color);
+                }
+                else if (cell_value == CELL_STATE::UNKNOWN)
+                {
+                    geometry_msgs::Point new_point;
+                    new_point.x = location[0];
+                    new_point.y = location[1];
+                    new_point.z = location[2];
+                    display_rep.points.push_back(new_point);
+                    std_msgs::ColorRGBA new_color;
+                    new_color.a = alpha;
+                    new_color.b = 0.5;
+                    new_color.g = 0.5;
+                    new_color.r = 0.5;
+                    display_rep.colors.push_back(new_color);
+                }
+                else
+                {
+                    geometry_msgs::Point new_point;
+                    new_point.x = location[0];
+                    new_point.y = location[1];
+                    new_point.z = location[2];
+                    display_rep.points.push_back(new_point);
+                    std_msgs::ColorRGBA new_color;
+                    new_color.a = alpha;
+                    new_color.b = 0.0;
+                    new_color.g = 0.0;
+                    new_color.r = 0.0;
+                    display_rep.colors.push_back(new_color);
+                }
+            }
+        }
+    }
+    return display_rep;
+}
+
+visualization_msgs::Marker MultiresolutionVoxelGridManager::ExportLowResolutionForDisplay(float alpha)
+{
+    // Assemble a visualization_markers::Marker representation of the SDF to display in RViz
+    visualization_msgs::Marker display_rep;
+    // Populate the header
+    display_rep.header.frame_id = frame_;
+    // Populate the options
+    display_rep.ns = "multiresolution_voxelgrid_display";
+    display_rep.id = 1;
+    display_rep.type = visualization_msgs::Marker::CUBE_LIST;
+    display_rep.action = visualization_msgs::Marker::ADD;
+    display_rep.lifetime = ros::Duration(0.0);
+    display_rep.frame_locked = false;
+    display_rep.scale.x = grid_.GetLowResolution();
+    display_rep.scale.y = grid_.GetLowResolution();
+    display_rep.scale.z = grid_.GetLowResolution();
+    // Add all the cells of the SDF to the message
+    for (int64_t x_index = 0; x_index < grid_.GetLowResolutionNumXCells(); x_index++)
+    {
+        for (int64_t y_index = 0; y_index < grid_.GetLowResolutionNumYCells(); y_index++)
+        {
+            for (int64_t z_index = 0; z_index < grid_.GetLowResolutionNumZCells(); z_index++)
+            {
+                // Get the value of the cell
+                CELL_STATE cell_value = grid_.CheckLowResolutionGrid(x_index, y_index, z_index).first;
+                // Get the real-world location of the cell
+                std::vector<double> location = grid_.LowResolutionGridIndexToLocation(x_index, y_index, z_index);
+                if (cell_value == CELL_STATE::KNOWN_FILLED)
+                {
+                    geometry_msgs::Point new_point;
+                    new_point.x = location[0];
+                    new_point.y = location[1];
+                    new_point.z = location[2];
+                    display_rep.points.push_back(new_point);
+                    std_msgs::ColorRGBA new_color;
+                    new_color.a = alpha;
+                    new_color.b = 0.0;
+                    new_color.g = 0.0;
+                    new_color.r = 1.0;
+                    display_rep.colors.push_back(new_color);
+                }
+                else if (cell_value == CELL_STATE::LIKELY_FILLED)
+                {
+                    geometry_msgs::Point new_point;
+                    new_point.x = location[0];
+                    new_point.y = location[1];
+                    new_point.z = location[2];
+                    display_rep.points.push_back(new_point);
+                    std_msgs::ColorRGBA new_color;
+                    new_color.a = alpha;
+                    new_color.b = 0.0;
+                    new_color.g = 0.0;
+                    new_color.r = 0.5;
+                    display_rep.colors.push_back(new_color);
+                }
+                else if (cell_value == CELL_STATE::KNOWN_EMPTY)
+                {
+                    geometry_msgs::Point new_point;
+                    new_point.x = location[0];
+                    new_point.y = location[1];
+                    new_point.z = location[2];
+                    display_rep.points.push_back(new_point);
+                    std_msgs::ColorRGBA new_color;
+                    new_color.a = alpha;
+                    new_color.b = 1.0;
+                    new_color.g = 0.0;
+                    new_color.r = 0.0;
+                    display_rep.colors.push_back(new_color);
+                }
+                else if (cell_value == CELL_STATE::LIKELY_EMPTY)
+                {
+                    geometry_msgs::Point new_point;
+                    new_point.x = location[0];
+                    new_point.y = location[1];
+                    new_point.z = location[2];
+                    display_rep.points.push_back(new_point);
+                    std_msgs::ColorRGBA new_color;
+                    new_color.a = alpha;
+                    new_color.b = 0.5;
+                    new_color.g = 0.0;
+                    new_color.r = 0.0;
+                    display_rep.colors.push_back(new_color);
+                }
+                else if (cell_value == CELL_STATE::UNKNOWN)
+                {
+                    geometry_msgs::Point new_point;
+                    new_point.x = location[0];
+                    new_point.y = location[1];
+                    new_point.z = location[2];
+                    display_rep.points.push_back(new_point);
+                    std_msgs::ColorRGBA new_color;
+                    new_color.a = alpha;
+                    new_color.b = 0.5;
+                    new_color.g = 0.5;
+                    new_color.r = 0.5;
+                    display_rep.colors.push_back(new_color);
+                }
+                else
+                {
+                    geometry_msgs::Point new_point;
+                    new_point.x = location[0];
+                    new_point.y = location[1];
+                    new_point.z = location[2];
+                    display_rep.points.push_back(new_point);
+                    std_msgs::ColorRGBA new_color;
+                    new_color.a = alpha;
+                    new_color.b = 0.0;
+                    new_color.g = 0.0;
+                    new_color.r = 0.0;
+                    display_rep.colors.push_back(new_color);
                 }
             }
         }
